@@ -48,7 +48,6 @@ sympy==1.12
 tensorboard==2.13.0
 tensorboard-data-server==0.7.1
 toolz==0.12.0
-torch==2.0.1
 torchmetrics==0.11.4
 tqdm==4.65.0
 ujson==5.8.0

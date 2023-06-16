@@ -1,3 +1,5 @@
+import argparse
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -11,6 +13,7 @@ from pts import Trainer
 from pts.model.tempflow import TempFlowEstimator
 from pts.model.time_grad import TimeGradEstimator
 from pts.model.transformer_tempflow import TransformerTempFlowEstimator
+
 
 def plot(target, forecast, prediction_length, prediction_intervals=(50.0, 90.0), color='g', fname=None):
     label_prefix = ""
@@ -69,15 +72,20 @@ def plot(target, forecast, prediction_length, prediction_intervals=(50.0, 90.0),
         plt.savefig(fname, bbox_inches='tight', pad_inches=0.05)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", type=str, default="electricity_nips")
+    parser.add_argument("--save", type=str, default="reproduce_electricity.png")
+    parser.add_argument("--input_size", type=int, default=1484)
+    args = parser.parse_args()
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # device = torch.device('mps')
-    dataset = get_dataset("electricity_nips", regenerate=False)
+    dataset = get_dataset(args.dataset, regenerate=False)
     print(dataset.metadata)
+    print(args.dataset, args.save)
     
     train_grouper = MultivariateGrouper(max_target_dim=min(2000, int(dataset.metadata.feat_static_cat[0].cardinality)))
-
-    test_grouper = MultivariateGrouper(num_test_dates=int(len(dataset.test)/len(dataset.train)), 
-                                    max_target_dim=min(2000, int(dataset.metadata.feat_static_cat[0].cardinality)))
+    test_grouper = MultivariateGrouper(num_test_dates=int(len(dataset.test)/len(dataset.train)), max_target_dim=min(2000, int(dataset.metadata.feat_static_cat[0].cardinality)))
     
     dataset_train = train_grouper(dataset.train)
     dataset_test = test_grouper(dataset.test)
@@ -87,7 +95,7 @@ if __name__ == "__main__":
         prediction_length=dataset.metadata.prediction_length,
         context_length=dataset.metadata.prediction_length,
         cell_type='GRU',
-        input_size=1484,
+        input_size=args.input_size,
         freq=dataset.metadata.freq,
         loss_type='l2',
         scaling=True,
@@ -116,10 +124,9 @@ if __name__ == "__main__":
         forecast=forecasts[0],
         prediction_length=dataset.metadata.prediction_length,
     )
-    plt.savefig("reproduce.png")
+    plt.savefig(args.save)
     
-    evaluator = MultivariateEvaluator(quantiles=(np.arange(20)/20.0)[1:], 
-                                  target_agg_funcs={'sum': np.sum})
+    evaluator = MultivariateEvaluator(quantiles=(np.arange(20)/20.0)[1:], target_agg_funcs={'sum': np.sum})
     
     agg_metric, item_metrics = evaluator(targets, forecasts, num_series=len(dataset_test))
     
